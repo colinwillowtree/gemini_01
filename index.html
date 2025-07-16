@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creative Portfolio</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- p5.js and addons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+
+    <style id="dynamic-styles">
+        /* This style tag will be updated by JavaScript for theme-dependent scrollbars */
+        ::-webkit-scrollbar-thumb { background: #4F46E5; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366F1; }
+    </style>
+
+    <style>
+        /* Custom styles to supplement Tailwind */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* A dark blue-gray */
+            color: #F3F4F6; /* A light gray for text */
+            overflow-x: hidden; /* Prevents horizontal scroll */
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .content-card {
+            background: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        
+        /* --- Gallery Styles --- */
+        .filter-btn.active {
+            background-color: #4F46E5;
+            color: #FFF;
+        }
+
+        .project-card {
+            position: relative;
+            display: block;
+            overflow: hidden;
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        .project-card::before {
+            content: '';
+            display: block;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+        }
+        .project-card-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        /* --- Modal Styles --- */
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        #p5-sketch-container {
+            width: 100%;
+            height: 0;
+            padding-bottom: 75%; /* 4:3 Aspect Ratio */
+            position: relative;
+            background-color: #000;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        #p5-sketch-container canvas {
+            position: absolute;
+            width: 100% !important;
+            height: 100% !important;
+            top: 0;
+            left: 0;
+        }
+
+        /* --- Custom Animation for the Hover Effect --- */
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        #hero-head-photo .spinning-circle {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            opacity: 0;
+            transform: scale(1);
+        }
+        #hero-head-photo:hover .spinning-circle {
+            opacity: 1;
+            transform: scale(1.25);
+            animation: spin 10s linear infinite;
+        }
+        #hero-head-photo #head-photo-glow {
+            transition: opacity 0.3s ease-in-out;
+        }
+         #hero-head-photo:hover #head-photo-glow {
+            opacity: 0.5;
+        }
+
+
+        /* --- Role Text Swipe Animation --- */
+        #role-slider-track {
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-radius: 9999px;
+            padding: 0.5rem;
+            margin-top: 2rem;
+            touch-action: none; /* Prevents scrolling while dragging */
+        }
+        #role-slider-thumb {
+            position: relative;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: transform 0.3s cubic-bezier(0.2, 1, 0.3, 1); /* For the snap-back effect */
+        }
+        #role-slider-thumb:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="w-full">
+
+    <!-- Single container for the background sketch -->
+    <div id="canvas-container"></div>
+
+    <!-- Right-side navigation bar -->
+    <nav class="fixed top-1/2 -translate-y-1/2 right-0 p-4 z-50">
+        <div class="flex flex-col items-center space-y-4">
+            <a href="#hero" class="group nav-button" aria-label="Home"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-gray-400 group-hover:text-white group-hover:scale-125 transition-all duration-300"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+            <a href="#about" class="group nav-button" aria-label="About Me"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-gray-400 group-hover:text-white group-hover:scale-125 transition-all duration-300"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></a>
+            <a href="#work" class="group nav-button" aria-label="My Work"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-gray-400 group-hover:text-white group-hover:scale-125 transition-all duration-300"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="3" rx="1"></rect><rect width="7" height="7" x="14" y="14" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect></svg></a>
+            <a href="#contact" class="group nav-button" aria-label="Contact"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-gray-400 group-hover:text-white group-hover:scale-125 transition-all duration-300"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></a>
+        </div>
+    </nav>
+
+    <main class="w-full">
+
+        <!-- Hero Section -->
+        <section id="hero" class="min-h-screen relative flex justify-center items-center text-center p-4 text-white overflow-hidden">
+            
+            <!-- Head photo in the top right with hover effect -->
+            <a href="#" id="hero-head-photo" class="absolute top-8 right-8 z-20 hidden md:block w-32 h-32 transition-transform duration-300 ease-in-out hover:scale-110">
+                <img src="https://raw.githubusercontent.com/colinwillowtree/images/refs/heads/main/head_purple.png" alt="Headshot" class="relative z-10 w-full h-full rounded-full object-cover border-4 border-indigo-500 shadow-lg transition-colors duration-300">
+                <!-- The spinning circle now has a z-index of 20 to appear on top of the image (z-10) -->
+                <div class="spinning-circle absolute inset-0 rounded-full border-2 border-dashed border-indigo-400 z-20"></div>
+                <!-- The glow effect is a sibling, so it appears behind the image by default -->
+                <div id="head-photo-glow" class="absolute inset-0 rounded-full bg-indigo-500 opacity-0 blur-xl transition-all duration-300"></div>
+            </a>
+
+            <!-- Hero Text Container -->
+            <div class="relative z-10 flex flex-col items-center">
+                <div id="hero-logo" class="mb-8">
+                    <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 964.34 259.08" class="w-full max-w-md h-auto">
+                        <g><path d="M244.17,117.17c-32.37,0-58.71-26.22-58.71-58.45S211.8,0,244.17,0C259.85,0,274.56,6.1,285.62,17.17c11.05,11.07,17.14,25.83,17.14,41.54,0,32.23-26.28,58.45-58.58,58.45ZM244.17,22.38c-20.03,0-36.33,16.3-36.33,36.33s16.3,36.07,36.33,36.07,36.07-16.18,36.07-36.07-16.18-36.33-36.07-36.33Z" fill="currentColor"/><polygon points="320.6 117.17 320.6 0 343.74 0 343.74 94.02 410.9 94.02 410.9 117.17 320.6 117.17" fill="currentColor"/><rect x="428.75" y="0" width="23.15" height="117.17" fill="currentColor"/><polygon points="561.9 117.17 492.88 40.6 492.88 117.17 469.73 117.17 469.73 0 487.56 0 556.57 76.57 556.57 0 579.72 0 579.72 117.17 561.9 117.17" fill="currentColor"/></g>
+                        <g><rect x="428.74" y="141.9" width="23.15" height="117.18" fill="currentColor"/><polygon points="469.76 259.08 469.76 141.89 492.9 141.89 492.9 235.93 560.07 235.93 560.07 259.08 469.76 259.08" fill="currentColor"/><polygon points="579.72 259.08 579.72 141.89 602.87 141.89 602.87 235.93 670.03 235.93 670.03 259.08 579.72 259.08" fill="currentColor"/><path d="M730.39,259.08c-32.38,0-58.72-26.23-58.72-58.46s26.34-58.72,58.72-58.72c15.67,0,30.39,6.1,41.45,17.17,11.05,11.08,17.14,25.83,17.14,41.55,0,32.24-26.28,58.46-58.59,58.46ZM730.39,164.28c-20.03,0-36.33,16.3-36.33,36.33s16.3,36.08,36.33,36.08,36.08-16.18,36.08-36.08-16.18-36.33-36.08-36.33Z" fill="currentColor"/><polygon points="903.72 259.08 876.62 185.34 849.63 259.08 832.88 259.08 788.98 141.9 813.69 141.9 841.03 215.74 868.07 141.9 885.41 141.9 912.32 215.69 939.65 141.9 964.34 141.9 920.6 259.08 903.72 259.08" fill="currentColor"/><polygon points="350.28 259.08 323.18 185.34 296.19 259.08 279.44 259.08 235.54 141.9 260.24 141.9 287.59 215.74 314.63 141.9 331.97 141.9 358.88 215.69 386.21 141.9 410.9 141.9 367.16 259.08 350.28 259.08" fill="currentColor"/></g>
+                        <path d="M122.19,207.9c-46.46,0-71.01-27-71.01-78.07s24.56-78.66,71.01-78.66h38.95c1.79-19.88,10.57-37.77,23.88-51.18h-62.83C46.82,0,0,49.75,0,129.84c0,40.14,11.74,73.3,33.96,95.9,21.46,21.82,51.96,33.35,88.23,33.35h132.57l-19.23-51.18h-113.35Z" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h1 id="hero-title" class="text-5xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter">
+                    <span id="hero-creative" class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500 transition-colors duration-500">Creative</span>
+                    <span id="hero-role" class="transition-colors duration-500">Developer</span>
+                </h1>
+                <p class="mt-4 text-lg md:text-2xl text-gray-300 max-w-3xl">Web & App Development, 3D Rendering, Motion Design, and Digital Sculpture.</p>
+                
+                <!-- New Tactile Slider -->
+                <div id="role-slider-track" class="w-64 h-16">
+                    <div id="role-slider-thumb" class="w-32 h-16 text-lg bg-indigo-600 transition-colors duration-500">
+                        <svg class="w-8 h-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                        Slide
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="min-h-screen flex items-center justify-center p-8">
+            <div class="content-card rounded-2xl p-8 md:p-12 max-w-4xl w-full mx-auto flex flex-col md:flex-row items-center">
+                <div class="w-full md:w-1/3 mb-8 md:mb-0 md:mr-12 flex-shrink-0">
+                    <img src="https://raw.githubusercontent.com/colinwillowtree/images/refs/heads/main/head_purple.png" alt="Photo of the site author" class="w-48 h-48 md:w-64 md:h-64 mx-auto rounded-full object-cover shadow-lg border-4 border-indigo-500 transform -scale-x-100">
+                </div>
+                <div>
+                    <h2 class="text-4xl md:text-6xl font-bold mb-6">About Me</h2>
+                    <div class="text-base md:text-lg space-y-4 text-gray-300">
+                        <p>I am a passionate creator who thrives at the intersection of technology and art. With a strong foundation in full-stack web development, I build intuitive and powerful applications. My passion doesn't stop at code; I dive deep into the world of 3D, crafting everything from intricate digital sculptures to fluid motion graphics.</p>
+                        <p>My goal is to create experiences that are not only functional but also beautiful and memorable. I believe that the best digital products are born from a blend of precise engineering and creative vision.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Work Section -->
+        <section id="work" class="min-h-screen flex flex-col items-center justify-center p-8">
+            <div class="content-card rounded-2xl p-8 md:p-12 max-w-7xl w-full mx-auto">
+                <h2 class="text-4xl md:text-6xl font-bold mb-4 text-center">Featured Work</h2>
+                <div id="filter-container" class="flex justify-center flex-wrap gap-2 md:gap-4 mb-8">
+                    <button class="filter-btn active py-2 px-4 rounded-lg bg-gray-700 hover:bg-indigo-600 transition-colors duration-300" data-filter="all">All</button>
+                    <button class="filter-btn py-2 px-4 rounded-lg bg-gray-700 hover:bg-indigo-600 transition-colors duration-300" data-filter="3d">3D & Motion</button>
+                    <button class="filter-btn py-2 px-4 rounded-lg bg-gray-700 hover:bg-indigo-600 transition-colors duration-300" data-filter="design">Design & Illustration</button>
+                    <button class="filter-btn py-2 px-4 rounded-lg bg-gray-700 hover:bg-indigo-600 transition-colors duration-300" data-filter="code">Creative Coding</button>
+                </div>
+                <div id="project-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="min-h-screen flex items-center justify-center p-8">
+            <div class="content-card rounded-2xl p-8 md:p-12 max-w-2xl w-full mx-auto text-center">
+                <h2 class="text-4xl md:text-6xl font-bold mb-6">Get In Touch</h2>
+                <p class="text-lg text-gray-300 mb-8">Have a project in mind or just want to say hello? I'd love to hear from you.</p>
+                <a href="mailto:your-email@example.com" class="inline-block bg-indigo-600 text-white font-bold py-4 px-8 rounded-lg text-lg hover:bg-indigo-500 transition-colors duration-300">Say Hello</a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Project Details Modal -->
+    <div id="project-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="modal-content bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 relative transform scale-95 opacity-0">
+            <button id="modal-close-btn" class="absolute top-4 right-4 text-white hover:text-indigo-400 z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div id="modal-body"></div>
+            <h3 id="modal-title" class="text-2xl font-bold mt-4"></h3>
+            <p id="modal-description" class="text-gray-300 mt-2"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- Global Theme State for p5.js ---
+        window.currentTheme = {
+            orbiterColor: [167, 139, 250, 150],
+            boidColor: [243, 244, 246]
+        };
+
+        // --- Background Sketch (Boids & Orbiters) ---
+        let flock = [], numBoids = 100, orbiters = [], numOrbiters = 15, noiseScale = 0.01, time = 0;
+        
+        function setup() { 
+            let canvas = createCanvas(windowWidth, windowHeight); 
+            canvas.parent('canvas-container'); 
+            for(let i=0; i<numBoids; i++){
+                flock.push(new Boid(random(width),random(height)));
+            } 
+            for(let i=0; i<numOrbiters; i++){
+                orbiters.push(new Orbiter());
+            } 
+        }
+        
+        function draw() { 
+            clear(); // Use clear() for transparent background
+            for(let boid of flock){
+                boid.flock(flock);
+                boid.update();
+                boid.show();
+                boid.edges();
+            } 
+            for(let orbiter of orbiters){
+                orbiter.update();
+                orbiter.show();
+            } 
+            time+=0.005; 
+        }
+        
+        function windowResized() { 
+            resizeCanvas(windowWidth,windowHeight); 
+            orbiters=[]; 
+            for(let i=0; i<numOrbiters; i++){
+                orbiters.push(new Orbiter());
+            } 
+        }
+        
+        class Orbiter { 
+            constructor(){
+                this.radius=random(100,min(width,height)/3);
+                this.angle=random(TWO_PI);
+                this.speed=random(0.005,0.015);
+                this.size=random(10,40);
+                this.shapeType=random(['circle','line','arc']);
+            } 
+            update(){
+                this.angle+=this.speed;
+            } 
+            show(){
+                let c = color(window.currentTheme.orbiterColor);
+                let x=width/2+cos(this.angle)*this.radius;
+                let y=height/2+sin(this.angle)*this.radius;
+                push();
+                translate(x,y);
+                stroke(c);
+                strokeWeight(2);
+                noFill();
+                if(this.shapeType==='circle'){
+                    ellipse(0,0,this.size,this.size)
+                } else if(this.shapeType==='line'){
+                    rotate(this.angle*2);
+                    line(-this.size/2,0,this.size/2,0)
+                } else if(this.shapeType==='arc'){
+                    arc(0,0,this.size,this.size,0,PI+QUARTER_PI)
+                }
+                pop();
+            } 
+        }
+        
+        class Boid { 
+            constructor(x,y){
+                this.position=createVector(x,y);
+                this.velocity=p5.Vector.random2D();
+                this.velocity.setMag(random(2,4));
+                this.acceleration=createVector();
+                this.maxForce=0.2;
+                this.maxSpeed=4;
+            } 
+            flock(boids){
+                let alignment=this.align(boids);
+                let cohesion=this.cohere(boids);
+                let separation=this.separate(boids);
+                let flow=this.followFlowField();
+                alignment.mult(1.0);
+                cohesion.mult(1.0);
+                separation.mult(1.5);
+                flow.mult(0.5);
+                this.acceleration.add(alignment);
+                this.acceleration.add(cohesion);
+                this.acceleration.add(separation);
+                this.acceleration.add(flow);
+            } 
+            align(boids){
+                let perceptionRadius=50;
+                let steering=createVector();
+                let total=0;
+                for(let other of boids){
+                    let d=dist(this.position.x,this.position.y,other.position.x,other.position.y);
+                    if(other!=this&&d<perceptionRadius){
+                        steering.add(other.velocity);
+                        total++;
+                    }
+                } 
+                if(total>0){
+                    steering.div(total);
+                    steering.setMag(this.maxSpeed);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce);
+                } 
+                return steering;
+            } 
+            cohere(boids){
+                let perceptionRadius=100;
+                let steering=createVector();
+                let total=0;
+                for(let other of boids){
+                    let d=dist(this.position.x,this.position.y,other.position.x,other.position.y);
+                    if(other!=this&&d<perceptionRadius){
+                        steering.add(other.position);
+                        total++;
+                    }
+                } 
+                if(total>0){
+                    steering.div(total);
+                    steering.sub(this.position);
+                    steering.setMag(this.maxSpeed);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce);
+                } 
+                return steering;
+            } 
+            separate(boids){
+                let perceptionRadius=24;
+                let steering=createVector();
+                let total=0;
+                for(let other of boids){
+                    let d=dist(this.position.x,this.position.y,other.position.x,other.position.y);
+                    if(other!=this&&d<perceptionRadius){
+                        let diff=p5.Vector.sub(this.position,other.position);
+                        diff.div(d*d);
+                        steering.add(diff);
+                        total++;
+                    }
+                } 
+                if(total>0){
+                    steering.div(total);
+                    steering.setMag(this.maxSpeed);
+                    steering.sub(this.velocity);
+                    steering.limit(this.maxForce);
+                } 
+                return steering;
+            } 
+            followFlowField(){
+                let angle=noise(this.position.x*noiseScale,this.position.y*noiseScale,time)*TWO_PI*2;
+                let desired=p5.Vector.fromAngle(angle);
+                desired.setMag(this.maxSpeed);
+                let steer=p5.Vector.sub(desired,this.velocity);
+                steer.limit(this.maxForce);
+                return steer;
+            } 
+            update(){
+                this.position.add(this.velocity);
+                this.velocity.add(this.acceleration);
+                this.velocity.limit(this.maxSpeed);
+                this.acceleration.mult(0);
+            } 
+            show(){
+                let c = color(window.currentTheme.boidColor);
+                c.setAlpha(random(50, 150));
+                noStroke();
+                fill(c);
+                ellipse(this.position.x,this.position.y,3,3);
+            } 
+            edges(){
+                if(this.position.x>width)this.position.x=0;
+                if(this.position.x<0)this.position.x=width;
+                if(this.position.y>height)this.position.y=0;
+                if(this.position.y<0)this.position.y=height;
+            } 
+        }
+
+        // --- Main Page Logic (Modals, Filtering, Theming etc.) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Theme Management ---
+            const themes = [
+                {
+                    role: 'Developer',
+                    gradientFrom: 'from-indigo-400',
+                    gradientTo: 'to-purple-500',
+                    borderColor: 'border-indigo-500',
+                    dotColor: 'border-indigo-400',
+                    glowColor: 'bg-indigo-500',
+                    thumbColor: 'bg-indigo-600',
+                    bgColor: '#111827',
+                    p5OrbiterColor: [167, 139, 250, 150],
+                    p5BoidColor: [243, 244, 246],
+                    scrollbarColor: '#4F46E5',
+                    scrollbarHoverColor: '#6366F1'
+                },
+                {
+                    role: 'Designer',
+                    gradientFrom: 'from-orange-400',
+                    gradientTo: 'to-red-500',
+                    borderColor: 'border-orange-500',
+                    dotColor: 'border-orange-400',
+                    glowColor: 'bg-orange-500',
+                    thumbColor: 'bg-orange-600',
+                    bgColor: '#4a1d13', // A deep, dark orange/brown
+                    p5OrbiterColor: [251, 146, 60, 150],
+                    p5BoidColor: [253, 224, 71],
+                    scrollbarColor: '#f97316',
+                    scrollbarHoverColor: '#fb923c'
+                }
+            ];
+            let currentThemeIndex = 0;
+            let isAnimating = false;
+
+            const heroCreative = document.getElementById('hero-creative');
+            const heroRole = document.getElementById('hero-role');
+            const headPhoto = document.getElementById('hero-head-photo').querySelector('img');
+            const headPhotoDotted = document.getElementById('hero-head-photo').querySelector('.spinning-circle');
+            const headPhotoGlow = document.getElementById('head-photo-glow');
+            const dynamicStyleTag = document.getElementById('dynamic-styles');
+            const sliderTrack = document.getElementById('role-slider-track');
+            const sliderThumb = document.getElementById('role-slider-thumb');
+
+            function switchTheme(newIndex) {
+                if (isAnimating || newIndex === currentThemeIndex) return;
+                isAnimating = true;
+
+                const oldTheme = themes[currentThemeIndex];
+                const newTheme = themes[newIndex];
+
+                heroRole.textContent = newTheme.role;
+                
+                document.body.style.backgroundColor = newTheme.bgColor;
+
+                heroCreative.classList.remove(oldTheme.gradientFrom, oldTheme.gradientTo);
+                heroCreative.classList.add(newTheme.gradientFrom, newTheme.gradientTo);
+
+                heroRole.classList.remove(oldTheme.gradientTo);
+                heroRole.classList.add(newTheme.gradientTo);
+
+                headPhoto.classList.remove(oldTheme.borderColor);
+                headPhoto.classList.add(newTheme.borderColor);
+                
+                headPhotoDotted.classList.remove(oldTheme.dotColor);
+                headPhotoDotted.classList.add(newTheme.dotColor);
+                
+                headPhotoGlow.classList.remove(oldTheme.glowColor);
+                headPhotoGlow.classList.add(newTheme.glowColor);
+
+                sliderThumb.classList.remove(oldTheme.thumbColor);
+                sliderThumb.classList.add(newTheme.thumbColor);
+
+                dynamicStyleTag.innerHTML = `
+                    ::-webkit-scrollbar-thumb { background: ${newTheme.scrollbarColor}; }
+                    ::-webkit-scrollbar-thumb:hover { background: ${newTheme.scrollbarHoverColor}; }
+                `;
+
+                window.currentTheme.orbiterColor = newTheme.p5OrbiterColor;
+                window.currentTheme.boidColor = newTheme.p5BoidColor;
+
+                currentThemeIndex = newIndex;
+                
+                setTimeout(() => { isAnimating = false; }, 500);
+            }
+
+            // --- Tactile Slider Logic ---
+            let isDragging = false;
+            let startX = 0;
+            let currentX = 0;
+            let trackRect = sliderTrack.getBoundingClientRect();
+            const endPosition = trackRect.width - sliderThumb.offsetWidth;
+
+            function onPointerDown(e) {
+                isDragging = true;
+                startX = e.clientX || e.touches[0].clientX;
+                sliderThumb.style.transition = 'none'; // Remove transition while dragging
+                sliderThumb.setPointerCapture(e.pointerId);
+            }
+
+            function onPointerMove(e) {
+                if (!isDragging) return;
+                currentX = (e.clientX || e.touches[0].clientX) - startX;
+                // Clamp the position
+                currentX = Math.max(0, Math.min(currentX, endPosition));
+                sliderThumb.style.transform = `translateX(${currentX}px)`;
+
+                // Dynamic background color blend
+                const dragPercent = currentX / endPosition;
+                const nextIndex = (currentThemeIndex + 1) % themes.length;
+                const startColor = themes[currentThemeIndex].bgColor;
+                const endColor = themes[nextIndex].bgColor;
+                // A simple way to blend hex colors - this could be more sophisticated
+                const blendedColor = blendHexColors(startColor, endColor, dragPercent);
+                document.body.style.backgroundColor = blendedColor;
+            }
+
+            function onPointerUp() {
+                if (!isDragging) return;
+                isDragging = false;
+                sliderThumb.style.transition = 'transform 0.3s cubic-bezier(0.2, 1, 0.3, 1)';
+                
+                const threshold = endPosition / 2;
+                if (currentX > threshold) {
+                    // Snap to end and switch theme
+                    sliderThumb.style.transform = `translateX(${endPosition}px)`;
+                    const nextIndex = (currentThemeIndex + 1) % themes.length;
+                    switchTheme(nextIndex);
+                    // After a delay, snap back to start for the new state
+                    setTimeout(() => {
+                        sliderThumb.style.transform = `translateX(0px)`;
+                    }, 400);
+                } else {
+                    // Snap back to start
+                    sliderThumb.style.transform = 'translateX(0px)';
+                    document.body.style.backgroundColor = themes[currentThemeIndex].bgColor;
+                }
+            }
+
+            sliderThumb.addEventListener('pointerdown', onPointerDown);
+            sliderThumb.addEventListener('pointermove', onPointerMove);
+            sliderThumb.addEventListener('pointerup', onPointerUp);
+            sliderThumb.addEventListener('pointercancel', onPointerUp);
+
+            // Helper to blend colors for the drag effect
+            function blendHexColors(c1, c2, p) {
+                const f=parseInt(c1.slice(1),16),t=parseInt(c2.slice(1),16),R1=f>>16,G1=f>>8&0x00FF,B1=f&0x0000FF,R2=t>>16,G2=t>>8&0x00FF,B2=t&0x0000FF;
+                return "#"+(0x1000000+(Math.round((R2-R1)*p)+R1)*0x10000+(Math.round((G2-G1)*p)+G1)*0x100+(Math.round((B2-B1)*p)+B1)).toString(16).slice(1);
+            }
+
+            // --- Project Grid and Modal Logic ---
+            const projects = [
+                { title: "Alien Character", category: "3d", type: "image", thumbnail: "https://github.com/colinwillowtree/images/blob/main/alien_01.png?raw=true", description: "A 3D character render created in Cinema 4D and Redshift." },
+                { title: "Astronaut", category: "3d", type: "image", thumbnail: "https://github.com/colinwillowtree/images/blob/main/astronaut_01.png?raw=true", description: "A 3D character render created in Cinema 4D and Redshift." },
+                { title: "Chomper Creature", category: "3d", type: "image", thumbnail: "https://github.com/colinwillowtree/images/blob/main/chomper_01.png?raw=true", description: "A 3D character render created in Cinema 4D and Redshift." },
+                { title: "Interceptor Ship", category: "3d", type: "image", thumbnail: "https://github.com/colinwillowtree/images/blob/main/interceptor_01.png?raw=true", description: "A 3D character render created in Cinema 4D and Redshift." },
+                { title: "Sci-Fi Woman", category: "3d", type: "image", thumbnail: "https://github.com/colinwillowtree/images/blob/main/woman_01.png?raw=true", description: "A 3D character render created in Cinema 4D and Redshift." },
+                { title: "Abstract Logo", category: "design", type: "image", thumbnail: "https://placehold.co/600x400/8B5CF6/FFFFFF?text=Logo", description: "A conceptual logo design exploring form and color." },
+                { title: "Live Audio Visualizer", category: "code", type: "p5-sketch", thumbnail: "https://placehold.co/600x400/10B981/FFFFFF?text=Visualizer", description: "An interactive audio visualizer built with p5.js. Click to start the music and experience." },
+                { title: "Vector Illustration", category: "design", type: "image", thumbnail: "https://placehold.co/600x400/8B5CF6/FFFFFF?text=Illustration", description: "A detailed vector illustration for a client project." },
+            ];
+
+            const grid = document.getElementById('project-grid');
+            const filters = document.querySelectorAll('.filter-btn');
+            const modal = document.getElementById('project-modal');
+            const modalOverlay = modal;
+            const modalContent = modal.querySelector('.modal-content');
+            const modalBody = document.getElementById('modal-body');
+            const modalTitle = document.getElementById('modal-title');
+            const modalDescription = document.getElementById('modal-description');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            let activeP5Instance = null;
+            
+            const visualizerSketch = (p) => {
+                let fft, song;
+                let radiusValues = new Array(40).fill(0);
+                let targetJump = 1, rotationCounter = 0, prevSum = 0;
+                
+                p.preload = () => {
+                    const songUrl = 'https://cdn.jsdelivr.net/gh/colinwillowtree/images@main/song_01.mp3';
+                    song = p.loadSound(songUrl);
+                };
+                p.setup = () => {
+                    const container = document.getElementById('p5-sketch-container');
+                    p.createCanvas(container.offsetWidth, container.offsetHeight, p.WEBGL);
+                    p.pixelDensity(1);
+                    fft = new p5.FFT(0.8, 512);
+                    if (song.isLoaded()) {
+                        p.getAudioContext().resume().then(() => {
+                            if (!song.isPlaying()) song.loop();
+                            fft.setInput(song);
+                        });
+                    }
+                };
+                p.mousePressed = () => {
+                    if (song && !song.isPlaying() && song.isLoaded()) {
+                        p.getAudioContext().resume().then(() => song.loop());
+                    }
+                }
+                p.draw = () => {
+                    p.background(0);
+                    if (song && song.isPlaying()) {
+                        let spectrum = fft.analyze();
+                        let sum = spectrum.slice(6, 30).reduce((a, b) => a + b, 0);
+                        let diff = Math.abs(sum - prevSum);
+                        prevSum = sum;
+                        let baseline = (sum / 24) / 10;
+                        let jump = (diff / 1.5) * 1.8;
+                        targetJump = p.lerp(targetJump, Math.max(baseline, jump), 0.1);
+                    } else {
+                        targetJump = p.lerp(targetJump, 1, 0.1);
+                    }
+                    rotationCounter++;
+                    updateRadiusValues();
+                    p.push();
+                    p.translate(0, 0, -200);
+                    p.scale(0.3);
+                    p.rotate(rotationCounter / -4.0 * p.PI / 180);
+                    drawVisualizerBody();
+                    p.pop();
+                };
+                p.remove = () => {
+                    if (song) {
+                        if (song.isPlaying()) song.stop();
+                        song.disconnect();
+                        song.dispose();
+                    }
+                    p.noLoop();
+                    p.removeElements();
+                }
+                function updateRadiusValues() {
+                    radiusValues[0] = p.lerp(radiusValues[0], targetJump, 0.15);
+                    for (let j = 1; j < 40; j++) {
+                        radiusValues[j] = p.lerp(radiusValues[j], radiusValues[j - 1], 0.25);
+                    }
+                }
+                function drawVisualizerBody() {
+                    p.push();
+                    for (let i=0; i<2; i++) {
+                        p.push();
+                        for (let spoke=0; spoke<12; spoke++) {
+                            p.push();
+                            p.rotate((30 * spoke) * p.PI / 180);
+                            p.rotate((i === 0 ? -rotationCounter : rotationCounter) / 12.0 * p.PI / 180);
+                            p.translate(200, 0);
+                            for (let j=0; j<20; j++) {
+                                p.push();
+                                let index = i === 0 ? j : 19 - j;
+                                let radius = radiusValues[index] || 0;
+                                if (j % 2 == 0) p.stroke(0, radius * 5 / 3, 255);
+                                else p.stroke(radius * 5 / 3, 0, 255);
+                                p.strokeWeight(2);
+                                p.noFill();
+                                let xPos = (i === 0 ? 1 : -1) * radius * 5 + 50 * (j + 1);
+                                let yPos = 50 * (j + 1);
+                                p.translate(xPos, yPos);
+                                let rectSize = i === 0 ? radius : radius / 2;
+                                p.rect(-rectSize / 2, -rectSize / 2, rectSize, rectSize);
+                                p.pop();
+                            }
+                            p.pop();
+                        }
+                        p.pop();
+                    }
+                    p.pop();
+                }
+            };
+
+            function renderGrid(filter = 'all') {
+                grid.innerHTML = ''; 
+                const filteredProjects = projects.filter(p => filter === 'all' || p.category === filter);
+                filteredProjects.forEach(project => {
+                    const originalIndex = projects.findIndex(p => p.title === project.title);
+                    const card = document.createElement('div');
+                    card.className = 'project-card cursor-pointer animate-fade-in';
+                    card.dataset.index = originalIndex;
+                    card.innerHTML = `<div class="project-card-content group"><img src="${project.thumbnail}" alt="${project.title}" onerror="this.onerror=null;this.src='https://placehold.co/600x400/1F2937/FFFFFF?text=Image+Not+Found';" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"><div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h3 class="text-white text-xl font-bold p-4 text-center">${project.title}</h3></div></div>`;
+                    grid.appendChild(card);
+                });
+            }
+            
+            filters.forEach(button => {
+                button.addEventListener('click', () => {
+                    filters.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    renderGrid(button.dataset.filter);
+                });
+            });
+
+            function openModal(project) {
+                modalBody.innerHTML = ''; 
+                if (project.type === 'p5-sketch') {
+                    const sketchContainer = document.createElement('div');
+                    sketchContainer.id = 'p5-sketch-container';
+                    modalBody.appendChild(sketchContainer);
+                    activeP5Instance = new p5(visualizerSketch, 'p5-sketch-container');
+                } else {
+                    modalBody.innerHTML = `<img src="${project.thumbnail}" alt="${project.title}" class="w-full h-auto rounded-md mb-4">`;
+                }
+                modalTitle.textContent = project.title;
+                modalDescription.textContent = project.description;
+                modal.classList.remove('pointer-events-none');
+                modalOverlay.classList.remove('opacity-0');
+                modalContent.classList.remove('opacity-0', 'scale-95');
+            }
+
+            function closeModal() {
+                if (activeP5Instance) {
+                    activeP5Instance.remove();
+                    activeP5Instance = null;
+                }
+                modalOverlay.classList.add('opacity-0');
+                modalContent.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    modal.classList.add('pointer-events-none');
+                    modalBody.innerHTML = '';
+                }, 300);
+            }
+
+            grid.addEventListener('click', (e) => {
+                const card = e.target.closest('.project-card');
+                if (card) {
+                    const projectIndex = card.dataset.index;
+                    openModal(projects[projectIndex]);
+                }
+            });
+
+            modalCloseBtn.addEventListener('click', closeModal);
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+
+            renderGrid();
+            
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e){
+                    e.preventDefault(); 
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({behavior:'smooth'});
+                });
+            });
+        });
+    </script>
+</body>
+</html>
